@@ -492,3 +492,9 @@ pytest:
 .PHONY: format-and-pytest
 format-and-pytest:
 	RUNTIME=docker ./util/docker_cmd.sh bash -lic "$(CONTAINER_PREAMBLE); qmk format-c --core-only -a && qmk format-python -a && qmk pytest"
+
+.PHONY: run
+run:
+	docker rmi qmk_firmware -f || true
+	docker build -t qmk_firmware .
+	docker run --rm -it -v /Users/hamid/go/src/github.com/codekhol/qmk_firmware:/qmk_firmware qmk_firmware
