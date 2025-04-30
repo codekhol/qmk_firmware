@@ -495,6 +495,11 @@ format-and-pytest:
 
 .PHONY: run
 run:
+    # git submodule update --init --recursive
 	docker rmi qmk_firmware -f || true
 	docker build -t qmk_firmware .
 	docker run --rm -it -v /Users/hamid/go/src/github.com/codekhol/qmk_firmware:/qmk_firmware qmk_firmware
+
+.PHONY: compile
+compile:
+	qmk compile -kb zenith -km codekhol

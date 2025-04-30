@@ -51,7 +51,5 @@ RUN pip3 install -v qmk --break-system-packages || tail -n 50 /var/log/apt/term.
 # Set working directory (use the mounted directory)
 WORKDIR /qmk_firmware
 
-# RUN git submodule update --init --recursive
-
 # Start bash shell after QMK is ready
 CMD bash
