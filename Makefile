@@ -497,9 +497,12 @@ format-and-pytest:
 run:
     # git submodule update --init --recursive
 	docker rmi qmk_firmware -f || true
-	docker build -t qmk_firmware .
-	docker run --rm -it -v /Users/hamid/go/src/github.com/codekhol/qmk_firmware:/qmk_firmware qmk_firmware
+	docker volume prune -f
+	docker container prune -f
+	docker build --no-cache -t qmk_firmware .
+	docker run --rm -it -v /Users/hamid/Go/github.com/codekhol/qmk_firmware:/qmk_firmware qmk_firmware
 
 .PHONY: compile
 compile:
+	qmk clean
 	qmk compile -kb zenith -km codekhol
