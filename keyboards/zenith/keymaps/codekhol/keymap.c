@@ -18,77 +18,108 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     )
 };
 
-// v1
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    switch (keycode) {
-        case KC_LBRC:
-            if (record->event.pressed) {
-                if (get_mods() & MOD_MASK_SHIFT) {
-                    // Temporarily disable Shift to send unshifted ']'
-                    uint8_t saved_mods = get_mods();
-                    del_mods(MOD_MASK_SHIFT);
-                    tap_code(KC_RBRC);  // sends ]
-                    set_mods(saved_mods);
-                } else {
-                    tap_code(KC_LBRC);  // sends [
-                }
-            }
-            return false;
 
-        case KC_RBRC:
-            if (record->event.pressed) {
-                if (get_mods() & MOD_MASK_SHIFT) {
-                    tap_code16(S(KC_RBRC));  // sends }
+//1. when you see [ then print [
+//2. when you see } then print }
+
+//3. when you see { then instead print ]
+//4. when you see ] then instead print {
+
+// "for [ ] { }, my custom keyboard prints [ and } like an ordinary 
+// keyboard keys, but SHIFT+LBRC should print ] and RBRC should print {"
+
+// v1
+
+static bool lbrc_held = false;
+static bool rbrc_held = false;
+static uint16_t lbrc_code = KC_NO;
+static uint16_t rbrc_code = KC_NO;
+static uint8_t last_mods = 0;
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed) {
+        uint8_t mods = get_mods();
+
+        switch (keycode) {
+            case KC_LBRC:
+                lbrc_held = true;
+                if (mods & MOD_MASK_SHIFT) {
+                    del_mods(MOD_MASK_SHIFT);
+                    lbrc_code = KC_RBRC;  // ]
+                    register_code(lbrc_code);
+                    set_mods(mods);
                 } else {
-                    tap_code16(S(KC_LBRC));  // sends {
+                    lbrc_code = KC_LBRC;  // [
+                    register_code(lbrc_code);
                 }
-            }
-            return false;
+                return false;
+
+            case KC_RBRC:
+                rbrc_held = true;
+                if (mods & MOD_MASK_SHIFT) {
+                    rbrc_code = S(KC_RBRC);  // }
+                } else {
+                    rbrc_code = S(KC_LBRC);  // {
+                }
+                register_code16(rbrc_code);
+                return false;
+
+            case KC_LSFT:
+            case KC_RSFT:
+                // Handle Shift presses/releases dynamically
+                if (lbrc_held || rbrc_held) {
+                    last_mods = get_mods();
+                }
+                return true;
+        }
+
+    } else {
+        switch (keycode) {
+            case KC_LBRC:
+                lbrc_held = false;
+                unregister_code(lbrc_code);
+                lbrc_code = KC_NO;
+                return false;
+
+            case KC_RBRC:
+                rbrc_held = false;
+                unregister_code16(rbrc_code);
+                rbrc_code = KC_NO;
+                return false;
+        }
     }
 
     return true;
 }
 
-// v2
-// bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-//     static bool shift_down = false;
+void matrix_scan_user(void) {
+    static uint8_t prev_mods = 0;
+    uint8_t current_mods = get_mods();
 
-//     // Track the Shift key state manually
-//     if (keycode == KC_LSFT) {
-//         shift_down = record->event.pressed;
-//         return true;
-//     }
+    if (current_mods != prev_mods) {
+        if (lbrc_held) {
+            unregister_code(lbrc_code);
+            if (current_mods & MOD_MASK_SHIFT) {
+                del_mods(MOD_MASK_SHIFT);
+                lbrc_code = KC_RBRC;  // ]
+                register_code(lbrc_code);
+                set_mods(current_mods);
+            } else {
+                lbrc_code = KC_LBRC;  // [
+                register_code(lbrc_code);
+            }
+        }
 
-//     switch (keycode) {
-//         case KC_LBRC:
-//             if (record->event.pressed) {
-//                 uint8_t mods = get_mods();
-//                 if (shift_down) {
-//                     del_mods(MOD_MASK_SHIFT);
-//                     register_code(KC_RBRC);  // ]
-//                     set_mods(mods);
-//                 } else {
-//                     register_code(KC_LBRC);  // [
-//                 }
-//             } else {
-//                 unregister_code(KC_LBRC);
-//                 unregister_code(KC_RBRC);
-//             }
-//             return false;
+        if (rbrc_held) {
+            unregister_code16(rbrc_code);
+            if (current_mods & MOD_MASK_SHIFT) {
+                rbrc_code = S(KC_RBRC);  // }
+            } else {
+                rbrc_code = S(KC_LBRC);  // {
+            }
+            register_code16(rbrc_code);
+        }
 
-//         case KC_RBRC:
-//             if (record->event.pressed) {
-//                 if (shift_down) {
-//                     register_code16(S(KC_RBRC));  // }
-//                 } else {
-//                     register_code16(S(KC_LBRC));  // {
-//                 }
-//             } else {
-//                 unregister_code16(S(KC_RBRC));
-//                 unregister_code16(S(KC_LBRC));
-//             }
-//             return false;
-//     }
-
-//     return true;
-// }
+        prev_mods = current_mods;
+    }
+}

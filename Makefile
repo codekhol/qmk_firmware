@@ -504,5 +504,5 @@ run:
 
 .PHONY: compile
 compile:
-	qmk clean
+    # qmk clean
 	qmk compile -kb zenith -km codekhol
