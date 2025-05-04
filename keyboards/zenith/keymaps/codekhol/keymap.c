@@ -18,31 +18,19 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     )
 };
 
-
-//1. when you see [ then print [
-//2. when you see } then print }
-
-//3. when you see { then instead print ]
-//4. when you see ] then instead print {
-
-// "for [ ] { }, my custom keyboard prints [ and } like an ordinary 
-// keyboard keys, but SHIFT+LBRC should print ] and RBRC should print {"
-
-// v1
-
 static bool lbrc_held = false;
 static bool rbrc_held = false;
 static uint16_t lbrc_code = KC_NO;
 static uint16_t rbrc_code = KC_NO;
-static uint8_t last_mods = 0;
+static uint8_t last_shift_state = 0;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (record->event.pressed) {
-        uint8_t mods = get_mods();
-
-        switch (keycode) {
-            case KC_LBRC:
+    switch (keycode) {
+        case KC_LBRC:
+            if (record->event.pressed) {
                 lbrc_held = true;
+
+                uint8_t mods = get_mods();
                 if (mods & MOD_MASK_SHIFT) {
                     del_mods(MOD_MASK_SHIFT);
                     lbrc_code = KC_RBRC;  // ]
@@ -52,74 +40,58 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     lbrc_code = KC_LBRC;  // [
                     register_code(lbrc_code);
                 }
-                return false;
+            } else {
+                lbrc_held = false;
+                unregister_code(lbrc_code);
+                lbrc_code = KC_NO;
+            }
+            return false;
 
-            case KC_RBRC:
+        case KC_RBRC:
+            if (record->event.pressed) {
                 rbrc_held = true;
-                if (mods & MOD_MASK_SHIFT) {
+
+                if (get_mods() & MOD_MASK_SHIFT) {
                     rbrc_code = S(KC_RBRC);  // }
                 } else {
                     rbrc_code = S(KC_LBRC);  // {
                 }
+
                 register_code16(rbrc_code);
-                return false;
-
-            case KC_LSFT:
-            case KC_RSFT:
-                // Handle Shift presses/releases dynamically
-                if (lbrc_held || rbrc_held) {
-                    last_mods = get_mods();
-                }
-                return true;
-        }
-
-    } else {
-        switch (keycode) {
-            case KC_LBRC:
-                lbrc_held = false;
-                unregister_code(lbrc_code);
-                lbrc_code = KC_NO;
-                return false;
-
-            case KC_RBRC:
+            } else {
                 rbrc_held = false;
                 unregister_code16(rbrc_code);
                 rbrc_code = KC_NO;
-                return false;
-        }
+            }
+            return false;
     }
 
     return true;
 }
 
 void matrix_scan_user(void) {
-    static uint8_t prev_mods = 0;
-    uint8_t current_mods = get_mods();
+    uint8_t shift_state = get_mods() & MOD_MASK_SHIFT;
 
-    if (current_mods != prev_mods) {
+    if (shift_state != last_shift_state) {
+        last_shift_state = shift_state;
+
         if (lbrc_held) {
             unregister_code(lbrc_code);
-            if (current_mods & MOD_MASK_SHIFT) {
-                del_mods(MOD_MASK_SHIFT);
-                lbrc_code = KC_RBRC;  // ]
-                register_code(lbrc_code);
-                set_mods(current_mods);
-            } else {
-                lbrc_code = KC_LBRC;  // [
-                register_code(lbrc_code);
-            }
+
+            uint8_t mods = get_mods();
+            del_mods(MOD_MASK_SHIFT);
+
+            lbrc_code = shift_state ? KC_RBRC : KC_LBRC;
+            register_code(lbrc_code);
+
+            set_mods(mods);
         }
 
         if (rbrc_held) {
             unregister_code16(rbrc_code);
-            if (current_mods & MOD_MASK_SHIFT) {
-                rbrc_code = S(KC_RBRC);  // }
-            } else {
-                rbrc_code = S(KC_LBRC);  // {
-            }
+
+            rbrc_code = shift_state ? S(KC_RBRC) : S(KC_LBRC);
             register_code16(rbrc_code);
         }
-
-        prev_mods = current_mods;
     }
 }
