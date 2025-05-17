@@ -64,6 +64,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 rbrc_code = KC_NO;
             }
             return false;
+        
+        case FN_KEY:
+            fn_pressed = record->event.pressed;
+            break;
+    
+        case OPT_KEY:
+            opt_pressed = record->event.pressed;
+            break;
     }
 
     return true;
